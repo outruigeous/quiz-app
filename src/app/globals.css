@@ -252,10 +252,9 @@ input:focus {
 }
 
 .answer-btn.selected {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #1a1200;
-  box-shadow: 0 6px 0 #c4960a;
+  /* Removed yellow background and border per user request */
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 #8b6fd4;
 }
 
 .answer-btn.selected .opt-label {

@@ -172,21 +172,34 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
           <div className="q-label-text" style={{ color: 'var(--text)' }}>{player.name}</div>
         </div>
 
-        {!game.is_round_active && hasSubmitted && (
-           <div className="locked-in mt-4 flex-1">
-             <h3>ROUND OVER</h3>
-             <p>Look at the big screen to see if you got it right!</p>
-             <div className="choice-card mt-8">
-               {selectedAnswer}
+        {!game.is_round_active && (
+           <div className="locked-in mt-4 flex-1 flex flex-col items-center">
+             <div className="flex flex-col items-center gap-2 mb-6">
+                <div className="text-6xl mb-2">
+                  {hasSubmitted && selectedAnswer === game.answers_key[game.current_question - 1] ? '✨' : '💫'}
+                </div>
+                <h3>ROUND OVER</h3>
              </div>
-           </div>
-        )}
 
-        {!game.is_round_active && !hasSubmitted && (
-           <div className="locked-in mt-4 flex-1">
-             <div className="checkmark">🕒</div>
-             <h3>TIME IS UP</h3>
-             <p>You did not answer this round.</p>
+             <div className="flex flex-col gap-6 items-center w-full">
+                {hasSubmitted && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="label">Your Pick</div>
+                    <div className={`choice-card m-0 ${selectedAnswer === game.answers_key[game.current_question - 1] ? 'border-accent bg-accent/20' : 'opacity-60'}`}>
+                      {selectedAnswer}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col items-center gap-2">
+                  <div className="label text-[var(--accent)]">Correct Answer</div>
+                  <div className="choice-card m-0 border-accent">
+                    {game.answers_key[game.current_question - 1]}
+                  </div>
+                </div>
+
+                {!hasSubmitted && <p className="mt-4 text-red-400">You didn't lock in an answer!</p>}
+             </div>
            </div>
         )}
 
