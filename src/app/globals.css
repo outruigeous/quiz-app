@@ -241,12 +241,15 @@ input:focus {
 }
 
 .answer-btn:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: transparent;
   transform: translateY(-3px);
   box-shadow: 0 9px 0 #8b6fd4;
 }
 
-.answer-btn:active:not(:disabled) {
+.answer-btn:active:not(:disabled),
+.answer-btn:focus-visible {
+  outline: none;
+  border-color: transparent;
   transform: translateY(3px);
   box-shadow: 0 3px 0 #8b6fd4;
 }
