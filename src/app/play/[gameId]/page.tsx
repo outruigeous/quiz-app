@@ -314,18 +314,19 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
     return (
       <div className="screen active" style={{ flex: 1 }}>
         
-        {/* Unified Header */}
-        <div className="w-full flex flex-col items-center mb-6 pt-2">
-           <h1 className={`text-6xl mb-2 transition-colors ${isUrgent ? 'text-red-500 blink-anim' : 'text-[var(--accent)]'}`}>
-              {game.is_round_active ? timeLeft : '0'}
-           </h1>
-           <div className="flex items-center gap-4 text-sm font-bold opacity-80">
-              <div className="bg-white/10 px-3 py-1 rounded-full uppercase">
-                {questions.find(q => q.question_index === game.current_question)?.question_text || `Q${game.current_question}`} / {game.answers_key?.length || 0}
-              </div>
-              <div className="bar-line w-8"></div>
-              <div className="text-[var(--text)]">{player.name}</div>
+        <h1 
+          className={`mb-6 text-center transition-colors ${isUrgent ? 'text-red-500 blink-anim' : 'text-[var(--accent)]'}`}
+          style={{ fontSize: '40px', fontWeight: 'bold' }}
+        >
+           {game.is_round_active ? timeLeft : '0'}
+        </h1>
+        
+        <div className="question-header-bar">
+           <div className="q-label-text">
+             {questions.find(q => q.question_index === game.current_question)?.question_text || `Question ${game.current_question}`}
            </div>
+           <div className="bar-line"></div>
+           <div className="q-label-text" style={{ color: 'var(--text)' }}>{player.name}</div>
         </div>
 
         {/* Mode 1: Answer Pad */}
@@ -381,33 +382,32 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
 
         {/* Mode 3: Round Over Reveal */}
         {!game.is_round_active && (
-           <div className="mt-4 flex-1 flex flex-col items-center w-full">
-             <div className="flex flex-col items-center gap-2 mb-6">
-                <div className="text-6xl mb-2">
-                  {hasSubmitted && selectedAnswer === game.answers_key[game.current_question - 1] ? '✨' : '💫'}
-                </div>
-                <h3 className="text-2xl">ROUND OVER</h3>
-             </div>
+           <div className="mt-8 flex-1 flex flex-col items-center w-full locked-in">
+              <div className="flex justify-center mb-4">
+                 <div className="text-6xl">
+                   {hasSubmitted && selectedAnswer === game.answers_key[game.current_question - 1] ? '✨' : '💫'}
+                 </div>
+              </div>
+              
+              <h1 className="text-3xl uppercase tracking-tighter" style={{ marginBottom: '24px' }}>ROUND OVER</h1>
 
-             <div className="flex flex-col gap-6 items-center w-full max-w-[300px]">
-                {hasSubmitted && (
-                  <div className="flex flex-col items-center gap-2 w-full">
-                    <div className="label text-xs uppercase tracking-widest opacity-60">Your Pick</div>
-                    <div className={`choice-card w-full m-0 ${selectedAnswer === game.answers_key[game.current_question - 1] ? 'border-accent bg-accent/20' : 'opacity-60'}`}>
-                      {selectedAnswer}
-                    </div>
-                  </div>
-                )}
+              <div className="flex flex-col gap-8 items-center w-full max-w-[280px]">
+                 {hasSubmitted && (
+                   <div className="flex flex-col items-center gap-2 w-full">
+                     <div className="label text-xs uppercase tracking-widest opacity-60">Your Pick</div>
+                     <div className={`choice-card ${selectedAnswer === game.answers_key[game.current_question - 1] ? 'border-accent' : 'opacity-50'}`}>
+                       {selectedAnswer}
+                     </div>
+                   </div>
+                 )}
 
-                <div className="flex flex-col items-center gap-2 w-full">
-                  <div className="label text-xs uppercase tracking-widest text-[var(--accent)]">Correct Answer</div>
-                  <div className="choice-card w-full m-0 border-accent">
-                    {game.answers_key[game.current_question - 1]}
-                  </div>
-                </div>
-
-                {!hasSubmitted && <p className="mt-4 text-red-500 font-bold uppercase tracking-tighter">TIME IS UP!</p>}
-             </div>
+                 <div className="flex flex-col items-center gap-2 w-full">
+                   <div className="label text-xs uppercase tracking-widest text-[var(--accent)] font-bold">Correct Answer</div>
+                   <div className="choice-card border-accent">
+                     {game.answers_key[game.current_question - 1]}
+                   </div>
+                 </div>
+              </div>
            </div>
         )}
 

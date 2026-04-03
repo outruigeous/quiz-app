@@ -318,18 +318,16 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
       {/* ── ACTIVE GAME ── */}
       {game.status === 'active' && (
         <>
-          <div className="flex-row items-center mb-6">
-            <div className="flex flex-col gap-2">
-               <div className="question-label">
-                  {questions.find(q => q.question_index === game.current_question)?.question_text || 'Question'}
-               </div>
-               <div className="question-number">{game.current_question} / {game.answers_key.length}</div>
-            </div>
-            {game.is_round_active ? (
-               <div className="status-pill active blink-anim self-start mt-1">Accepting Answers</div>
-            ) : (
-               <div className="status-pill text-red-400 border-red-400 self-start mt-1">Round Closed</div>
-             )}
+          <div className="question-header-bar mb-6">
+             <div className="q-label-text">
+                {questions.find(q => q.question_index === game.current_question)?.question_text || `Question ${game.current_question}`}
+             </div>
+             <div className="bar-line"></div>
+             {game.is_round_active ? (
+                <div className="status-pill active blink-anim self-start">Accepting Answers</div>
+             ) : (
+                <div className="status-pill text-red-500 border-red-500 self-start">Round Closed</div>
+              )}
           </div>
 
           {!game.is_round_active && (
