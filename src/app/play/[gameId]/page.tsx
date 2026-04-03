@@ -10,11 +10,24 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
   const [game, setGame] = useState<any>(null);
   const [player, setPlayer] = useState<any>(null); 
   const [name, setName] = useState('');
+  const [isRestoring, setIsRestoring] = useState(true);
   
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
+  // 1. Initial game fetch and session check
+  useEffect(() => {
+    fetchGame();
+  }, [shortCode]);
+
+  useEffect(() => {
+    if (game?.id) {
+      checkExistingSession();
+    }
+  }, [game?.id]);
+
+  // 2. Fetch leaderboard when needed
   useEffect(() => {
     if ((game?.status === 'active' || game?.status === 'finished') && game?.id) {
       supabase
@@ -28,10 +41,7 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
     }
   }, [game?.status, game?.id, hasSubmitted, game?.current_question]);
 
-  useEffect(() => {
-    fetchGame();
-  }, [shortCode]);
-
+  // 3. Real-time game updates and question sync
   useEffect(() => {
     if (!game?.id) return;
     
@@ -53,13 +63,104 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
     };
   }, [game?.id]);
 
+  // 4. Presence Tracking
+  useEffect(() => {
+    if (!game?.id || !player?.id) return;
+
+    const channel = supabase.channel(`game-presence-${game.id}`);
+    
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        // console.log('Presence sync', channel.presenceState());
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            player_id: player.id,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [game?.id, player?.id]);
+
   const fetchGame = async () => {
     const { data } = await supabase.from('games').select('*').eq('short_code', shortCode).single();
     if (data) setGame(data);
   };
 
+  const checkExistingSession = async () => {
+    const sessionStr = localStorage.getItem('quiz_player_session');
+    if (!sessionStr) {
+      setIsRestoring(false);
+      return;
+    }
+
+    try {
+      const session = JSON.parse(sessionStr);
+      if (session.gameId === game.id) {
+        const { data: playerData } = await supabase
+          .from('players')
+          .select('*')
+          .eq('id', session.playerId)
+          .single();
+        
+        if (playerData) {
+          setPlayer(playerData);
+          await syncCurrentQuestionResponse(playerData.id, game.current_question);
+        }
+      }
+    } catch (e) {
+      console.error('Error restoring session:', e);
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const syncCurrentQuestionResponse = async (playerId: string, questionIndex: number) => {
+    if (questionIndex === 0) return;
+
+    const { data } = await supabase
+      .from('player_responses')
+      .select('*')
+      .eq('player_id', playerId)
+      .eq('question_index', questionIndex)
+      .maybeSingle();
+    
+    if (data) {
+      setSelectedAnswer(data.selected_answer);
+      setHasSubmitted(true);
+    } else {
+      setHasSubmitted(false);
+      setSelectedAnswer(null);
+    }
+  };
+
   const joinGame = async () => {
     if (!name.trim() || !game?.id) return;
+
+    // Check if player name already exists in this game
+    const { data: existingPlayer } = await supabase
+      .from('players')
+      .select('*')
+      .eq('game_id', game.id)
+      .eq('name', name.trim())
+      .maybeSingle();
+
+    if (existingPlayer) {
+      // If name exists, just reconnect them
+      setPlayer(existingPlayer);
+      localStorage.setItem('quiz_player_session', JSON.stringify({
+        playerId: existingPlayer.id,
+        gameId: game.id
+      }));
+      await syncCurrentQuestionResponse(existingPlayer.id, game.current_question);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('players')
       .insert([{ game_id: game.id, name: name.trim() }])
@@ -72,6 +173,11 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
     }
     
     setPlayer(data);
+    localStorage.setItem('quiz_player_session', JSON.stringify({
+      playerId: data.id,
+      gameId: game.id
+    }));
+    await syncCurrentQuestionResponse(data.id, game.current_question);
   };
 
   const submitAnswer = async (answer: number) => {
@@ -95,6 +201,15 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
   );
 
   // ── Render Join Form ──
+  if (isRestoring) return (
+     <div className="screen active">
+        <div className="waiting-msg">
+           <div className="astronaut-float text-6xl">🛸</div>
+           <p>Reconnecting your ship...</p>
+        </div>
+     </div>
+  );
+
   if (!player) {
     if (game.status === 'setup') {
       return (

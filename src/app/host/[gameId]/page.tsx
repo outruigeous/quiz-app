@@ -12,6 +12,7 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
   const [players, setPlayers] = useState<any[]>([]);
   const [responses, setResponses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onlinePlayerIds, setOnlinePlayerIds] = useState<Set<string>>(new Set());
 
   // Setup form states
   const [totalQuestions, setTotalQuestions] = useState<number | string>(1);
@@ -46,10 +47,28 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
       })
       .subscribe();
 
+    // Presence Subscription
+    const presenceChannel = supabase.channel(`game-presence-${gameId}`);
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineIds = new Set<string>();
+        
+        Object.values(state).forEach((presences: any) => {
+          presences.forEach((p: any) => {
+            if (p.player_id) onlineIds.add(p.player_id);
+          });
+        });
+        
+        setOnlinePlayerIds(onlineIds);
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(gameSub);
       supabase.removeChannel(playerSub);
       supabase.removeChannel(responseSub);
+      supabase.removeChannel(presenceChannel);
     };
   }, [gameId]);
 
@@ -241,12 +260,20 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
                 <p>Waiting for players...</p>
               </div>
             ) : (
-              players.map(p => (
-                <div key={p.id} className="player-row">
-                  <span className="player-name">{p.name}</span>
-                  <span className="player-status waiting">Ready</span>
-                </div>
-              ))
+              players.map(p => {
+                const isOnline = onlinePlayerIds.has(p.id);
+                return (
+                  <div key={p.id} className="player-row">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`}></div>
+                      <span className="player-name">{p.name}</span>
+                    </div>
+                    <span className={`player-status ${isOnline ? 'voted' : 'waiting'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -326,13 +353,19 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
           <div className="label mb-2 mt-4 text-center">Final Leaderboard</div>
           
           <div className="leaderboard">
-            {[...players].sort((a,b) => b.score - a.score).map((p, idx) => (
-              <div key={p.id} className={`lb-row ${idx === 0 ? 'first' : idx === 1 ? 'second' : idx === 2 ? 'third' : ''}`}>
-                <div className="lb-rank">#{idx + 1}</div>
-                <div className="lb-name">{p.name}</div>
-                <div className="lb-score">{p.score}</div>
-              </div>
-            ))}
+            {[...players].sort((a,b) => b.score - a.score).map((p, idx) => {
+              const isOnline = onlinePlayerIds.has(p.id);
+              return (
+                <div key={p.id} className={`lb-row ${idx === 0 ? 'first' : idx === 1 ? 'second' : idx === 2 ? 'third' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="lb-rank">#{idx + 1}</div>
+                    <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_6px_#22c55e]' : 'bg-gray-500'}`}></div>
+                    <div className="lb-name">{p.name}</div>
+                  </div>
+                  <div className="lb-score">{p.score}</div>
+                </div>
+              );
+            })}
           </div>
 
           <button onClick={() => router.push('/')} className="btn-ghost mt-8">

@@ -26,19 +26,19 @@ export default function Home() {
           <h1 style={{ marginTop: '4px' }}>WHO SAID WHAT?!</h1>
         </div>
       </div>
-      
+
       <div className="w-full flex flex-col gap-4">
-         <div className="label text-center">JOIN A GAME</div>
-         <input 
-           type="text" 
-           maxLength={4}
-           pattern="\d{4}"
-           placeholder="4-DIGIT CODE" 
-           className="text-center text-2xl tracking-[0.4em] uppercase"
-           value={joinCode}
-           onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
-         />
-         <button onClick={joinGame} className="btn-yellow mt-2">JOIN</button>
+        <div className="label text-center">JOIN A GAME</div>
+        <input
+          type="text"
+          maxLength={4}
+          pattern="\d{4}"
+          placeholder="4-DIGIT CODE"
+          className="text-center text-2xl tracking-[0.4em] uppercase"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
+        />
+        <button onClick={joinGame} className="btn-yellow mt-2">JOIN</button>
       </div>
     </div>
   );
