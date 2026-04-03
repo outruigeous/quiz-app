@@ -72,6 +72,23 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
     };
   }, [gameId]);
 
+  // Timer Auto-End Logic
+  useEffect(() => {
+    if (!game || !game.is_round_active || !game.timer_ends_at) return;
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const endTime = new Date(game.timer_ends_at).getTime();
+      
+      if (now >= endTime) {
+        endRound();
+        clearInterval(interval);
+      }
+    }, 500); // Check every half second
+
+    return () => clearInterval(interval);
+  }, [game?.is_round_active, game?.timer_ends_at]);
+
   const fetchGame = async () => {
     const { data } = await supabase.from('games').select('*').eq('id', gameId).single();
     if (data) {
@@ -130,10 +147,12 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
   };
 
   const startGame = async () => {
+    const timerEndsAt = new Date(Date.now() + 30000).toISOString();
     await supabase.from('games').update({
       status: 'active',
       current_question: 1,
-      is_round_active: true
+      is_round_active: true,
+      timer_ends_at: timerEndsAt
     }).eq('id', gameId);
   };
 
@@ -170,9 +189,11 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
         is_round_active: false
       }).eq('id', gameId);
     } else {
+      const timerEndsAt = new Date(Date.now() + 30000).toISOString();
       await supabase.from('games').update({
         current_question: game.current_question + 1,
-        is_round_active: true
+        is_round_active: true,
+        timer_ends_at: timerEndsAt
       }).eq('id', gameId);
     }
   };

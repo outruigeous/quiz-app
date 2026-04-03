@@ -15,6 +15,7 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [timeLeft, setTimeLeft] = useState<number>(30);
 
   // 1. Initial game fetch and session check
   useEffect(() => {
@@ -86,6 +87,20 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
       channel.unsubscribe();
     };
   }, [game?.id, player?.id]);
+
+  // Sync Countdown Logic
+  useEffect(() => {
+    if (!game || !game.is_round_active || !game.timer_ends_at) return;
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const endTime = new Date(game.timer_ends_at).getTime();
+      const diff = Math.max(0, Math.ceil((endTime - now) / 1000));
+      setTimeLeft(diff);
+    }, 100); // Fast check for accurate sync
+
+    return () => clearInterval(interval);
+  }, [game?.is_round_active, game?.timer_ends_at]);
 
   const fetchGame = async () => {
     const { data } = await supabase.from('games').select('*').eq('short_code', shortCode).single();
@@ -277,76 +292,28 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
     );
   }
 
-  // ── Active Game - Answer Pad ──
+  // ── Active Game - Unified Header & Modes ──
   if (game.status === 'active') {
+    const isUrgent = timeLeft <= 10 && game.is_round_active;
+    
     return (
       <div className="screen active" style={{ flex: 1 }}>
-        <div className="question-header-bar">
-          <div className="q-label-text">Q{game.current_question} / {game.answers_key?.length || 0}</div>
-          <div className="bar-line"></div>
-          <div className="q-label-text" style={{ color: 'var(--text)' }}>{player.name}</div>
+        
+        {/* Unified Header */}
+        <div className="w-full flex flex-col items-center mb-6 pt-2">
+           <h1 className={`text-6xl mb-2 transition-colors ${isUrgent ? 'text-red-500 blink-anim' : 'text-[var(--accent)]'}`}>
+              {game.is_round_active ? timeLeft : '0'}
+           </h1>
+           <div className="flex items-center gap-4 text-sm font-bold opacity-80">
+              <div className="bg-white/10 px-3 py-1 rounded-full uppercase">Q{game.current_question} / {game.answers_key?.length || 0}</div>
+              <div className="bar-line w-8"></div>
+              <div className="text-[var(--text)]">{player.name}</div>
+           </div>
         </div>
 
-        {!game.is_round_active && (
-           <div className="locked-in mt-4 flex-1 flex flex-col items-center">
-             <div className="flex flex-col items-center gap-2 mb-6">
-                <div className="text-6xl mb-2">
-                  {hasSubmitted && selectedAnswer === game.answers_key[game.current_question - 1] ? '✨' : '💫'}
-                </div>
-                <h3>ROUND OVER</h3>
-             </div>
-
-             <div className="flex flex-col gap-6 items-center w-full">
-                {hasSubmitted && (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="label">Your Pick</div>
-                    <div className={`choice-card m-0 ${selectedAnswer === game.answers_key[game.current_question - 1] ? 'border-accent bg-accent/20' : 'opacity-60'}`}>
-                      {selectedAnswer}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col items-center gap-2">
-                  <div className="label text-[var(--accent)]">Correct Answer</div>
-                  <div className="choice-card m-0 border-accent">
-                    {game.answers_key[game.current_question - 1]}
-                  </div>
-                </div>
-
-                {!hasSubmitted && <p className="mt-4 text-red-400">You didn't lock in an answer!</p>}
-             </div>
-           </div>
-        )}
-
-        {game.is_round_active && hasSubmitted && (
-           <div className="flex-1 flex flex-col items-center">
-             <div className="locked-in mb-2 mt-4 flex flex-col items-center gap-2">
-                <div className="flex justify-center mb-2">
-                   <img src="/lockedinrocket.png" alt="Locked In" style={{ height: '200px', width: 'auto' }} className="astronaut-float" />
-                </div>
-                <h3>LOCKED IN!</h3>
-                <p>Waiting for everyone to flip their switch...</p>
-             </div>
-             
-             {leaderboard.length > 0 && (
-               <div className="leaderboard w-full flex-1 overflow-y-auto" style={{ maxHeight: '45vh' }}>
-                 {leaderboard.map((p, idx) => (
-                   <div key={p.id} className={`lb-row ${idx === 0 ? 'first' : idx === 1 ? 'second' : idx === 2 ? 'third' : ''}`}>
-                     <div className="lb-rank">#{idx + 1}</div>
-                     <div className="lb-name">
-                       {p.name}
-                       {p.id === player?.id && <span className="text-[var(--accent)] ml-2 text-xs">(You)</span>}
-                     </div>
-                     <div className="lb-score">{p.score}</div>
-                   </div>
-                 ))}
-               </div>
-             )}
-           </div>
-        )}
-
+        {/* Mode 1: Answer Pad */}
         {game.is_round_active && !hasSubmitted && (
-           <div className="mt-8 flex-1 flex flex-col justify-center">
+           <div className="mt-4 flex-1 flex flex-col justify-center w-full">
              <div className="answer-grid h-[60vh] md:h-auto md:aspect-square">
                {[1, 2, 3, 4].map((ans) => {
                  const isSelected = selectedAnswer === ans;
@@ -365,6 +332,68 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
            </div>
         )}
 
+        {/* Mode 2: Locked In Waiting Screen */}
+        {game.is_round_active && hasSubmitted && (
+           <div className="flex-1 flex flex-col items-center w-full">
+             <div className="locked-in mb-2 mt-4 flex flex-col items-center gap-2">
+                <div className="flex justify-center mb-2">
+                   <img src="/lockedinrocket.png" alt="Locked In" style={{ height: '200px', width: 'auto' }} className="astronaut-float" />
+                </div>
+                <h3 className="text-xl">LOCKED IN!</h3>
+                <p className="text-center">Everyone is flipping their switches...</p>
+             </div>
+             
+             {leaderboard.length > 0 && (
+               <div className="leaderboard w-full flex-1 overflow-y-auto mt-4" style={{ maxHeight: '35vh' }}>
+                 {leaderboard.map((p, idx) => (
+                   <div key={p.id} className={`lb-row ${idx === 0 ? 'first' : idx === 1 ? 'second' : idx === 2 ? 'third' : ''}`}>
+                     <div className="flex items-center gap-2">
+                        <div className="lb-rank">#{idx + 1}</div>
+                        <div className="lb-name">
+                          {p.name}
+                          {p.id === player?.id && <span className="text-[var(--accent)] ml-2 text-xs">(You)</span>}
+                        </div>
+                     </div>
+                     <div className="lb-score">{p.score}</div>
+                   </div>
+                 ))}
+               </div>
+             )}
+           </div>
+        )}
+
+        {/* Mode 3: Round Over Reveal */}
+        {!game.is_round_active && (
+           <div className="mt-4 flex-1 flex flex-col items-center w-full">
+             <div className="flex flex-col items-center gap-2 mb-6">
+                <div className="text-6xl mb-2">
+                  {hasSubmitted && selectedAnswer === game.answers_key[game.current_question - 1] ? '✨' : '💫'}
+                </div>
+                <h3 className="text-2xl">ROUND OVER</h3>
+             </div>
+
+             <div className="flex flex-col gap-6 items-center w-full max-w-[300px]">
+                {hasSubmitted && (
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <div className="label text-xs uppercase tracking-widest opacity-60">Your Pick</div>
+                    <div className={`choice-card w-full m-0 ${selectedAnswer === game.answers_key[game.current_question - 1] ? 'border-accent bg-accent/20' : 'opacity-60'}`}>
+                      {selectedAnswer}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col items-center gap-2 w-full">
+                  <div className="label text-xs uppercase tracking-widest text-[var(--accent)]">Correct Answer</div>
+                  <div className="choice-card w-full m-0 border-accent">
+                    {game.answers_key[game.current_question - 1]}
+                  </div>
+                </div>
+
+                {!hasSubmitted && <p className="mt-4 text-red-500 font-bold uppercase tracking-tighter">TIME IS UP!</p>}
+             </div>
+           </div>
+        )}
+
       </div>
     );
   }
@@ -378,7 +407,7 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
               <img src="/leaderboardastronaut.png" alt="Mission Complete" style={{ height: '200px', width: 'auto' }} className="astronaut-float" />
            </div>
            <h1>GAME OVER</h1>
-        </div>
+         </div>
         
         <div className="label text-center mb-2">Final Standings</div>
 

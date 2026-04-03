@@ -8,6 +8,7 @@ CREATE TABLE games (
     answers_key INT[] NOT NULL DEFAULT '{}',
     current_question INT NOT NULL DEFAULT 0,
     is_round_active BOOLEAN NOT NULL DEFAULT false,
+    timer_ends_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
