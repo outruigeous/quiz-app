@@ -13,6 +13,7 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
   const [responses, setResponses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlinePlayerIds, setOnlinePlayerIds] = useState<Set<string>>(new Set());
+  const [questions, setQuestions] = useState<any[]>([]);
 
   // Setup form states
   const [totalQuestions, setTotalQuestions] = useState<number | string>(1);
@@ -22,6 +23,7 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
     fetchGame();
     fetchPlayers();
     fetchResponses();
+    fetchQuestions();
 
     const gameSub = supabase
       .channel(`game-${gameId}`)
@@ -109,6 +111,15 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
   const fetchResponses = async () => {
     const { data } = await supabase.from('player_responses').select('*').eq('game_id', gameId);
     if (data) setResponses(data);
+  };
+
+  const fetchQuestions = async () => {
+    const { data } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('game_id', gameId)
+      .order('question_index', { ascending: true });
+    if (data) setQuestions(data);
   };
 
   const handleTotalQuestionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,7 +320,9 @@ export default function HostDashboard({ params }: { params: Promise<{ gameId: st
         <>
           <div className="flex-row items-center mb-6">
             <div className="flex flex-col gap-2">
-               <div className="question-label">Question</div>
+               <div className="question-label">
+                  {questions.find(q => q.question_index === game.current_question)?.question_text || 'Question'}
+               </div>
                <div className="question-number">{game.current_question} / {game.answers_key.length}</div>
             </div>
             {game.is_round_active ? (

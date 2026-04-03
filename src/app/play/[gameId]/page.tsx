@@ -16,10 +16,12 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [questions, setQuestions] = useState<any[]>([]);
 
   // 1. Initial game fetch and session check
   useEffect(() => {
     fetchGame();
+    fetchQuestions();
   }, [shortCode]);
 
   useEffect(() => {
@@ -104,7 +106,20 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
 
   const fetchGame = async () => {
     const { data } = await supabase.from('games').select('*').eq('short_code', shortCode).single();
-    if (data) setGame(data);
+    if (data) {
+      setGame(data);
+      // Fetch questions if we have a game ID
+      const { data: qData } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('game_id', data.id)
+        .order('question_index', { ascending: true });
+      if (qData) setQuestions(qData);
+    }
+  };
+
+  const fetchQuestions = async () => {
+     // This is now handled in fetchGame to ensure we have the game ID
   };
 
   const checkExistingSession = async () => {
@@ -305,7 +320,9 @@ export default function PlayDashboard({ params }: { params: Promise<{ gameId: st
               {game.is_round_active ? timeLeft : '0'}
            </h1>
            <div className="flex items-center gap-4 text-sm font-bold opacity-80">
-              <div className="bg-white/10 px-3 py-1 rounded-full uppercase">Q{game.current_question} / {game.answers_key?.length || 0}</div>
+              <div className="bg-white/10 px-3 py-1 rounded-full uppercase">
+                {questions.find(q => q.question_index === game.current_question)?.question_text || `Q${game.current_question}`} / {game.answers_key?.length || 0}
+              </div>
               <div className="bar-line w-8"></div>
               <div className="text-[var(--text)]">{player.name}</div>
            </div>
